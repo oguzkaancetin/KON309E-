@@ -59,8 +59,8 @@ int main(void)
 
   SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
 
-  // Set initial output to LOW (LEDs OFF at start)
-  SCT0->OUTPUT = 0x00;  // All outputs LOW
+  // Set initial output to HIGH (LEDs OFF at start - active low)
+  SCT0->OUTPUT = 0xFF;  // All outputs HIGH (LEDs OFF)
   SCT0->RES = 0x00;     // No conflict resolution (outputs stay as set)
 
   matchValueL = 60000; // 16-bit match value for Counter L (1 second)
@@ -70,20 +70,20 @@ int main(void)
     {
         if (GPIO_B25 == 1) // when button 1 is pressed
         {
-            // Turn ON Green LED (OUT2)
-            SCT0->OUTPUT |= (1 << 2);  // Set OUT2 HIGH
+            // Turn ON Green LED (OUT2) - set LOW for active-low LED
+            SCT0->OUTPUT &= ~(1 << 2);  // Set OUT2 LOW (LED ON)
             
-            // Turn ON Blue LED (OUT4)
-            SCT0->OUTPUT |= (1 << 4);  // Set OUT4 HIGH
+            // Turn ON Blue LED (OUT4) - set LOW for active-low LED
+            SCT0->OUTPUT &= ~(1 << 4);  // Set OUT4 LOW (LED ON)
             
             // Wait 1 second
             delay_ms(1000);
             
-            // Turn OFF Green LED (OUT2)
-            SCT0->OUTPUT &= ~(1 << 2); // Set OUT2 LOW
+            // Turn OFF Green LED (OUT2) - set HIGH for active-low LED
+            SCT0->OUTPUT |= (1 << 2); // Set OUT2 HIGH (LED OFF)
             
-            // Turn OFF Blue LED (OUT4)
-            SCT0->OUTPUT &= ~(1 << 4); // Set OUT4 LOW
+            // Turn OFF Blue LED (OUT4) - set HIGH for active-low LED
+            SCT0->OUTPUT |= (1 << 4); // Set OUT4 HIGH (LED OFF)
             
             // Debounce delay
             delay_ms(200);
