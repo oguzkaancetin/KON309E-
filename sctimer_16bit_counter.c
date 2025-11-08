@@ -29,18 +29,18 @@ int main(void)
     SYSCON_PRESETCTRL &= ~(0x400);  // Peripheral reset control to gpio/gpio int
     SYSCON_PRESETCTRL |=   0x400;   // AO: Check.
 
-    GPIO_DIR0 &= (!(1<<25)); // pin 24 is B1
+    GPIO_DIR0 &= ~(1U << 25); // pin 24 is B1
 
     SysTickConfig(SYSTEM_CORE_CLOCK/1000);  //setup systick clock interrupt @1ms
-	
-	  sctimer_config_t sctimerConfig;
-  uint32_t eventCounterL, eventCounterH; // The event number for counter L and H
-  uint16_t matchValueL, matchValueH;
+    
+    sctimer_config_t sctimerConfig;
+    uint32_t eventCounterL, eventCounterH; // The event number for counter L and H
+    uint16_t matchValueL, matchValueH;
 
-  InitPins();                           // Init board pins.
-  clock_init();                         // Initialize processor clock.
+    InitPins();                           // Init board pins.
+    clock_init();                         // Initialize processor clock.
 
-  CLOCK_EnableClock(kCLOCK_Sct);        // Enable clock of SCTimer.
+    CLOCK_EnableClock(kCLOCK_Sct);        // Enable clock of SCTimer.
 
   // SCTimer in 16-bit mode: two independent 16-bit counters (L and H).
   // Counter 'L' controls OUT2 -> PIO0_27 (Green LED on Alakart).
@@ -59,57 +59,59 @@ int main(void)
 
   SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
 
-  matchValueL = 60000; // 16-bit match value for Counter L
-  matchValueH = 60000; // 16-bit match value for Counter H
+    matchValueL = 60000; // 16-bit match value for Counter L
+    matchValueH = 60000; // 16-bit match value for Counter H
 
     while (1)
     {
         if (GPIO_B25 == 1) // when button 1 is pressed
         {
-            
-		SCTIMER_CreateAndScheduleEvent(SCT0,
-                                 kSCTIMER_MatchEventOnly,
-                                 matchValueL,
-                                 0,                  // Not used for "Match Only"
-                                 kSCTIMER_Counter_L,
-                                 &eventCounterL);
+            SCTIMER_CreateAndScheduleEvent(SCT0,
+                                           kSCTIMER_MatchEventOnly,
+                                           matchValueL,
+                                           0,                  // Not used for "Match Only"
+                                           kSCTIMER_Counter_L,
+                                           &eventCounterL);
 
-  // Toggle OUT2 on first match:
-  SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+            // Toggle OUT2 on first match:
+            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventCounterL);
 
-  // ONE-SHOT: stop Counter L on its first match (no periodic limit/reset)
-  SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
+            // ONE-SHOT: stop Counter L on its first match (no periodic limit/reset)
+            SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
 
-  // Event active direction (independent)
-  SCTIMER_SetupEventActiveDirection(SCT0,
-                                    kSCTIMER_ActiveIndependent,
-                                    eventCounterL);
+            // Event active direction (independent)
+            SCTIMER_SetupEventActiveDirection(SCT0,
+                                              kSCTIMER_ActiveIndependent,
+                                              eventCounterL);
 
-  // --------------------------
-  // Configure the HIGH counter
-  // --------------------------
-  SCTIMER_CreateAndScheduleEvent(SCT0,
-                                 kSCTIMER_MatchEventOnly,
-                                 matchValueH,
-                                 0,                  // Not used for "Match Only"
-                                 kSCTIMER_Counter_H,
-                                 &eventCounterH);
+            // --------------------------
+            // Configure the HIGH counter
+            // --------------------------
+            SCTIMER_CreateAndScheduleEvent(SCT0,
+                                           kSCTIMER_MatchEventOnly,
+                                           matchValueH,
+                                           0,                  // Not used for "Match Only"
+                                           kSCTIMER_Counter_H,
+                                           &eventCounterH);
 
-  // Toggle OUT4 on first match:
-  SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_4, eventCounterH);
+            // Toggle OUT4 on first match:
+            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_4, eventCounterH);
 
-  // ONE-SHOT: stop Counter H on its first match (no periodic limit/reset)
-  SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_H, eventCounterH);
+            // ONE-SHOT: stop Counter H on its first match (no periodic limit/reset)
+            SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_H, eventCounterH);
 
-  // Event active direction (independent)
-  SCTIMER_SetupEventActiveDirection(SCT0,
-                                    kSCTIMER_ActiveIndependent,
-                                    eventCounterH);
+            // Event active direction (independent)
+            SCTIMER_SetupEventActiveDirection(SCT0,
+                                              kSCTIMER_ActiveIndependent,
+                                              eventCounterH);
 
-  // Start both 16-bit counters
-  SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L | kSCTIMER_Counter_H);
-        
+            // Start both 16-bit counters
+            SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L | kSCTIMER_Counter_H);
+        }
     }
+
+    return 0;
+}
 
 void clock_init(void) {    // Set up the clock source
 
