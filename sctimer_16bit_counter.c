@@ -59,6 +59,10 @@ int main(void)
 
   SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
 
+  // Set initial output to LOW (LEDs OFF at start)
+  SCT0->OUTPUT = 0x00;  // All outputs LOW
+  SCT0->RES = 0x00;     // No conflict resolution (outputs stay as set)
+
   matchValueL = 60000; // 16-bit match value for Counter L (1 second)
   matchValueH = 60000; // 16-bit match value for Counter H (1 second)
 
@@ -66,62 +70,20 @@ int main(void)
     {
         if (GPIO_B25 == 1) // when button 1 is pressed
         {
-            // Turn ON LEDs immediately (first toggle: OFF->ON)
-            SCTIMER_CreateAndScheduleEvent(SCT0,
-                                 kSCTIMER_MatchEventOnly,
-                                 1,                  // Match at count=1 (immediate)
-                                 0,
-                                 kSCTIMER_Counter_L,
-                                 &eventCounterL);
-            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                    kSCTIMER_ActiveIndependent,
-                                    eventCounterL);
-
-            // Turn ON Blue LED immediately
-            uint32_t eventCounterH_on;
-            SCTIMER_CreateAndScheduleEvent(SCT0,
-                                 kSCTIMER_MatchEventOnly,
-                                 1,
-                                 0,
-                                 kSCTIMER_Counter_H,
-                                 &eventCounterH_on);
-            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_4, eventCounterH_on);
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                    kSCTIMER_ActiveIndependent,
-                                    eventCounterH_on);
-
-            // Start both counters
-            SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L | kSCTIMER_Counter_H);
+            // Turn ON Green LED (OUT2)
+            SCT0->OUTPUT |= (1 << 2);  // Set OUT2 HIGH
+            
+            // Turn ON Blue LED (OUT4)
+            SCT0->OUTPUT |= (1 << 4);  // Set OUT4 HIGH
             
             // Wait 1 second
             delay_ms(1000);
             
-            // Turn OFF LEDs (second toggle: ON->OFF)
-            SCTIMER_CreateAndScheduleEvent(SCT0,
-                                 kSCTIMER_MatchEventOnly,
-                                 1,
-                                 0,
-                                 kSCTIMER_Counter_L,
-                                 &eventCounterL);
-            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                    kSCTIMER_ActiveIndependent,
-                                    eventCounterL);
-
-            SCTIMER_CreateAndScheduleEvent(SCT0,
-                                 kSCTIMER_MatchEventOnly,
-                                 1,
-                                 0,
-                                 kSCTIMER_Counter_H,
-                                 &eventCounterH);
-            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_4, eventCounterH);
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                    kSCTIMER_ActiveIndependent,
-                                    eventCounterH);
-
-            // Trigger the toggle to turn OFF
-            SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L | kSCTIMER_Counter_H);
+            // Turn OFF Green LED (OUT2)
+            SCT0->OUTPUT &= ~(1 << 2); // Set OUT2 LOW
+            
+            // Turn OFF Blue LED (OUT4)
+            SCT0->OUTPUT &= ~(1 << 4); // Set OUT4 LOW
             
             // Debounce delay
             delay_ms(200);
