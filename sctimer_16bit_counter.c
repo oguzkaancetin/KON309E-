@@ -32,8 +32,8 @@ int main(void)
     GPIO_DIR0 &= (!(1<<25)); // pin 24 is B1
 
     SysTickConfig(SYSTEM_CORE_CLOCK/1000);  //setup systick clock interrupt @1ms
-	
-	  sctimer_config_t sctimerConfig;
+
+    sctimer_config_t sctimerConfig;
   uint32_t eventCounterL, eventCounterH; // The event number for counter L and H
   uint16_t matchValueL, matchValueH;
 
@@ -122,7 +122,7 @@ void clock_init(void) {    // Set up the clock source
 
   clock_sys_pll_t config;
   config.src = kCLOCK_SysPllSrcIrc;             // Select PLL source as IRC.
-  config.targetFreq = CORE_CLOCK * 1;           // Set PLL target freq
+  config.targetFreq = SYSTEM_CORE_CLOCK * 1;    // Set PLL target freq
 
   CLOCK_InitSystemPll(&config);                 // Apply PLL parameters
   CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcSysPll); // Main clock source = PLL
