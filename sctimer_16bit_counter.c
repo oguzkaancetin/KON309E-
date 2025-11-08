@@ -108,8 +108,9 @@ int main(void)
 
   // Start both 16-bit counters
   SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L | kSCTIMER_Counter_H);
-        
+        }
     }
+}
 
 void clock_init(void) {    // Set up the clock source
 
