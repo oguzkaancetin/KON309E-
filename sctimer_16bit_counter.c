@@ -8,7 +8,7 @@
 #include "fsl_swm_connections.h"
 #include "fsl_power.h"
 
-#define SYSTEM_CORE_CLOCK 15000000UL   //Declare system clock as 30MHz
+#define SYSTEM_CORE_CLOCK 30000000UL   //Declare system clock as 30MHz
 // (The clock speed has been set in "init.c" file to 30MHz.)
 
 static inline uint32_t SysTickConfig(uint32_t ticks);
@@ -57,7 +57,7 @@ int main(void)
   sctimerConfig.prescale_l = 249; // -> 250
   sctimerConfig.prescale_h = 249; // -> 250
 
-  SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
+    SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
 
     matchValueL = 60000; // 16-bit match value for Counter L
     matchValueH = 60000; // 16-bit match value for Counter H
@@ -115,34 +115,34 @@ int main(void)
 
 void clock_init(void) {    // Set up the clock source
 
-  // Set up IRC
-  POWER_DisablePD(kPDRUNCFG_PD_IRC_OUT);        // Turn ON IRC OUT
-  POWER_DisablePD(kPDRUNCFG_PD_IRC);            // Turn ON IRC
-  //POWER_DisablePD(kPDRUNCFG_PD_SYSOSC);       // In Alakart SYSOSC is not used.
-  CLOCK_Select(kSYSPLL_From_Irc);               // Connect IRC to PLL input.
+    // Set up IRC
+    POWER_DisablePD(kPDRUNCFG_PD_IRC_OUT);        // Turn ON IRC OUT
+    POWER_DisablePD(kPDRUNCFG_PD_IRC);            // Turn ON IRC
+    //POWER_DisablePD(kPDRUNCFG_PD_SYSOSC);       // In Alakart SYSOSC is not used.
+    CLOCK_Select(kSYSPLL_From_Irc);               // Connect IRC to PLL input.
 
-  clock_sys_pll_t config;
-  config.src = kCLOCK_SysPllSrcIrc;             // Select PLL source as IRC.
-  config.targetFreq = CORE_CLOCK * 1;           // Set PLL target freq
+    clock_sys_pll_t config;
+    config.src = kCLOCK_SysPllSrcIrc;             // Select PLL source as IRC.
+    config.targetFreq = SYSTEM_CORE_CLOCK;        // Set PLL target freq
 
-  CLOCK_InitSystemPll(&config);                 // Apply PLL parameters
-  CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcSysPll); // Main clock source = PLL
-  CLOCK_Select(kCLKOUT_From_Irc);               // CLKOUT source = IRC
-  CLOCK_SetCoreSysClkDiv(1U);
+    CLOCK_InitSystemPll(&config);                 // Apply PLL parameters
+    CLOCK_SetMainClkSrc(kCLOCK_MainClkSrcSysPll); // Main clock source = PLL
+    CLOCK_Select(kCLKOUT_From_Irc);               // CLKOUT source = IRC
+    CLOCK_SetCoreSysClkDiv(1U);
 
-  // Update SystemCoreClock global
-  SystemCoreClockUpdate ();
+    // Update SystemCoreClock global
+    SystemCoreClockUpdate ();
 
-  // (Optional) Output main clock on Pin 26 for scope verification
-  SYSCON->CLKOUTSEL = (uint32_t)3; // CLKOUT source to main clock
-  SYSCON->CLKOUTUEN = 0UL;
-  SYSCON->CLKOUTUEN = 1UL;
-  SYSCON->CLKOUTDIV = 100;         // Divide for observable frequency
+    // (Optional) Output main clock on Pin 26 for scope verification
+    SYSCON->CLKOUTSEL = (uint32_t)3; // CLKOUT source to main clock
+    SYSCON->CLKOUTUEN = 0UL;
+    SYSCON->CLKOUTUEN = 1UL;
+    SYSCON->CLKOUTDIV = 100;         // Divide for observable frequency
 
-  // Route CLKOUT to P0_26 via SWM
-  CLOCK_EnableClock(kCLOCK_Swm);     // Enable SWM clock
-  SWM_SetMovablePinSelect(SWM0, kSWM_CLKOUT, kSWM_PortPin_P0_26);
-  CLOCK_DisableClock(kCLOCK_Swm);    // Disable SWM clock (power save)
+    // Route CLKOUT to P0_26 via SWM
+    CLOCK_EnableClock(kCLOCK_Swm);     // Enable SWM clock
+    SWM_SetMovablePinSelect(SWM0, kSWM_CLKOUT, kSWM_PortPin_P0_26);
+    CLOCK_DisableClock(kCLOCK_Swm);    // Disable SWM clock (power save)
 }
 
 
