@@ -34,7 +34,7 @@ int main(void)
     SysTickConfig(SYSTEM_CORE_CLOCK/1000);  //setup systick clock interrupt @1ms
     
     sctimer_config_t sctimerConfig;
-    uint32_t eventCounterL, eventCounterH; // The event number for counter L and H
+    uint32_t eventOnL, eventOffL, eventOnH, eventOffH; // Event numbers for rising/falling edges
     uint16_t matchValueL, matchValueH;
 
     InitPins();                           // Init board pins.
@@ -59,54 +59,86 @@ int main(void)
 
     SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
 
-    matchValueL = 60000; // 16-bit match value for Counter L
-    matchValueH = 60000; // 16-bit match value for Counter H
+    matchValueL = 60000; // Duration counts for Counter L pulse
+    matchValueH = 60000; // Duration counts for Counter H pulse
+
+    uint16_t startOffset = 1U; // Small offset to guarantee first event ordering
+    uint16_t stopMatchL  = (uint16_t)(startOffset + matchValueL);
+    uint16_t stopMatchH  = (uint16_t)(startOffset + matchValueH);
+
+    // Ensure both LED outputs start in the OFF state (logic high on Alakart LEDs).
+    SCT0->OUTPUT |= (1U << kSCTIMER_Out_2) | (1U << kSCTIMER_Out_4);
+
+    // Configure events for Counter L: first toggle turns LED on, second turns it off and stops the counter.
+    SCTIMER_CreateAndScheduleEvent(SCT0,
+                                   kSCTIMER_MatchEventOnly,
+                                   startOffset,
+                                   0,
+                                   kSCTIMER_Counter_L,
+                                   &eventOnL);
+    SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventOnL);
+    SCTIMER_SetupEventActiveDirection(SCT0,
+                                      kSCTIMER_ActiveIndependent,
+                                      eventOnL);
+
+    SCTIMER_CreateAndScheduleEvent(SCT0,
+                                   kSCTIMER_MatchEventOnly,
+                                   stopMatchL,
+                                   0,
+                                   kSCTIMER_Counter_L,
+                                   &eventOffL);
+    SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventOffL);
+    SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventOffL);
+    SCTIMER_SetupEventActiveDirection(SCT0,
+                                      kSCTIMER_ActiveIndependent,
+                                      eventOffL);
+
+    // Configure events for Counter H.
+    SCTIMER_CreateAndScheduleEvent(SCT0,
+                                   kSCTIMER_MatchEventOnly,
+                                   startOffset,
+                                   0,
+                                   kSCTIMER_Counter_H,
+                                   &eventOnH);
+    SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_4, eventOnH);
+    SCTIMER_SetupEventActiveDirection(SCT0,
+                                      kSCTIMER_ActiveIndependent,
+                                      eventOnH);
+
+    SCTIMER_CreateAndScheduleEvent(SCT0,
+                                   kSCTIMER_MatchEventOnly,
+                                   stopMatchH,
+                                   0,
+                                   kSCTIMER_Counter_H,
+                                   &eventOffH);
+    SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_4, eventOffH);
+    SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_H, eventOffH);
+    SCTIMER_SetupEventActiveDirection(SCT0,
+                                      kSCTIMER_ActiveIndependent,
+                                      eventOffH);
+
+    // Clear any pending event flags before entering the main loop.
+    SCT0->EVFLAG = (1U << eventOnL) | (1U << eventOffL) | (1U << eventOnH) | (1U << eventOffH);
 
     while (1)
     {
         if (GPIO_B25 == 1) // when button 1 is pressed
         {
-            SCTIMER_CreateAndScheduleEvent(SCT0,
-                                           kSCTIMER_MatchEventOnly,
-                                           matchValueL,
-                                           0,                  // Not used for "Match Only"
-                                           kSCTIMER_Counter_L,
-                                           &eventCounterL);
+            // Reset both counters and clear event flags before starting the pulse.
+            SCT0->COUNT_L = 0;
+            SCT0->COUNT_H = 0;
+            SCT0->EVFLAG = (1U << eventOnL) | (1U << eventOffL) | (1U << eventOnH) | (1U << eventOffH);
 
-            // Toggle OUT2 on first match:
-            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-
-            // ONE-SHOT: stop Counter L on its first match (no periodic limit/reset)
-            SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
-
-            // Event active direction (independent)
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                              kSCTIMER_ActiveIndependent,
-                                              eventCounterL);
-
-            // --------------------------
-            // Configure the HIGH counter
-            // --------------------------
-            SCTIMER_CreateAndScheduleEvent(SCT0,
-                                           kSCTIMER_MatchEventOnly,
-                                           matchValueH,
-                                           0,                  // Not used for "Match Only"
-                                           kSCTIMER_Counter_H,
-                                           &eventCounterH);
-
-            // Toggle OUT4 on first match:
-            SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_4, eventCounterH);
-
-            // ONE-SHOT: stop Counter H on its first match (no periodic limit/reset)
-            SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_H, eventCounterH);
-
-            // Event active direction (independent)
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                              kSCTIMER_ActiveIndependent,
-                                              eventCounterH);
+            // Make sure outputs start from OFF state so the first toggle turns them ON.
+            SCT0->OUTPUT |= (1U << kSCTIMER_Out_2) | (1U << kSCTIMER_Out_4);
 
             // Start both 16-bit counters
             SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L | kSCTIMER_Counter_H);
+
+            // Simple debounce / single-shot: wait until button released.
+            while (GPIO_B25 == 1)
+            {
+            }
         }
     }
 
