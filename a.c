@@ -47,7 +47,7 @@ int main(void)
             SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
             
             // Reset counter to 0
-            SCT0->CTRL_U |= (1 << 3);  // Set CLRCTR_L bit to clear counter L
+            SCT0->CTRL |= (1 << 3);  // Set CLRCTR_L bit to clear counter L
             
             // Recreate the event with the match value for 1 second
             SCTIMER_CreateAndScheduleEvent(SCT0,
