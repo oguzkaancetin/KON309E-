@@ -20,6 +20,7 @@ volatile uint32_t delaytime; // This is decremented by SysTick_Handler.
 volatile int state = 0;
 volatile int B1Pressed = 0; // pin 24
 volatile int B2Pressed = 0; // pin 15
+volatile int ledState = 0; // 0 = OFF, 1 = ON
 
 int main(void)
 {
@@ -66,27 +67,37 @@ int main(void)
   matchValueL = 60000; // 16-bit match value for Counter L (1 second)
   matchValueH = 60000; // 16-bit match value for Counter H (1 second)
 
+  ledState = 0; // LEDs start in OFF state
+
     while (1)
     {
         if (GPIO_B25 == 1) // when button 1 is pressed
         {
-            // Turn ON Green LED (OUT2) - set LOW for active-low LED
-            SCT0->OUTPUT &= ~(1 << 2);  // Set OUT2 LOW (LED ON)
-            
-            // Turn ON Blue LED (OUT4) - set LOW for active-low LED
-            SCT0->OUTPUT &= ~(1 << 4);  // Set OUT4 LOW (LED ON)
-            
-            // Wait 1 second
+            // Wait 1 second first
             delay_ms(1000);
             
-            // Turn OFF Green LED (OUT2) - set HIGH for active-low LED
-            SCT0->OUTPUT |= (1 << 2); // Set OUT2 HIGH (LED OFF)
+            // Toggle LED state
+            if (ledState == 0) 
+            {
+                // Turn ON both LEDs (set LOW for active-low)
+                SCT0->OUTPUT &= ~(1 << 2);  // Set OUT2 LOW (Green LED ON)
+                SCT0->OUTPUT &= ~(1 << 4);  // Set OUT4 LOW (Blue LED ON)
+                ledState = 1; // Update state to ON
+            }
+            else 
+            {
+                // Turn OFF both LEDs (set HIGH for active-low)
+                SCT0->OUTPUT |= (1 << 2);   // Set OUT2 HIGH (Green LED OFF)
+                SCT0->OUTPUT |= (1 << 4);   // Set OUT4 HIGH (Blue LED OFF)
+                ledState = 0; // Update state to OFF
+            }
             
-            // Turn OFF Blue LED (OUT4) - set HIGH for active-low LED
-            SCT0->OUTPUT |= (1 << 4); // Set OUT4 HIGH (LED OFF)
-            
-            // Debounce delay
-            delay_ms(200);
+            // Wait for button release (debounce)
+            while (GPIO_B25 == 1) 
+            {
+                delay_ms(10);
+            }
+            delay_ms(50); // Additional debounce delay
         }
     }
 }
