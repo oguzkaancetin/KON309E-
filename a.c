@@ -68,13 +68,15 @@ int main(void)
                                             eventCounterL);
             
             if (state == 0) {
-                // State 0: LED şu an KAPALI, 1 saniye sonra YANACAK
-                SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+                // State 0: LED şu an KAPALI (OUT2=1), 1 saniye sonra YANACAK (OUT2=0)
+                // LED'i AÇMAK için OUT2'yi CLEAR (0) yapmalıyız
+                SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
                 state = 1; // Sonraki basışta sönecek
             }
             else { // state == 1
-                // State 1: LED şu an AÇIK, 1 saniye sonra SÖNECEK
-                SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+                // State 1: LED şu an AÇIK (OUT2=0), 1 saniye sonra SÖNECEK (OUT2=1)
+                // LED'i KAPATMAK için OUT2'yi SET (1) yapmalıyız
+                SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, eventCounterL);
                 state = 0; // Sonraki basışta yanacak
             }
             
@@ -113,18 +115,10 @@ void SCTimerL_init(void)
     // For 1 second delay: 48kHz * 1s = 48000 counts
     matchValueL = 48000; // 1 second delay at 48kHz
     
-    // Başlangıçta LED KAPALI olmalı (OUT2 = LOW)
-    // OUT2'nin initial value'sunu LOW (0) yap
-    // SCT Output Register: bit 2 = OUT2
-    SCT0->OUTPUT &= ~(1 << 2);  // Clear bit 2 (OUT2) - LED OFF
-    
-    // Conflict resolution: force output to 0 regardless of events
-    // RES register: 00 = no change, 01 = set output, 10 = clear output, 11 = toggle
-    // Bits [5:4] control OUT2
-    SCT0->RES = (SCT0->RES & ~(0x3 << 4)) | (0x2 << 4);  // Force OUT2 to clear (0x2 = clear)
-    
-    // After a brief moment, return to normal operation (00 = follow events)
-    SCT0->RES = (SCT0->RES & ~(0x3 << 4));  // OUT2 normal mode
+    // Başlangıçta LED KAPALI olmalı
+    // Alakart'ta LED mantığı: OUT2 = HIGH (1) ise LED KAPALI, OUT2 = LOW (0) ise LED AÇIK
+    // OUT2'yi HIGH (1) yaparak LED'i kapatıyoruz
+    SCT0->OUTPUT |= (1 << 2);  // Set bit 2 (OUT2) to HIGH - LED OFF
     
     // Note: The timer will be started when button is pressed in main()
 }
