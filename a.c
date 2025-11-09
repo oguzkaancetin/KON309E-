@@ -11,15 +11,17 @@
 #define CORE_CLOCK   6000000U
 
 // Global variables
-volatile int state = 0; // 0 = LED kapalı, butona basınca 1s sonra YANAR
-                        // 1 = LED açık, butona basınca 1s sonra SÖNER
+volatile int state = 0; // 0 = LED kapalı, sonraki toggle'da açılacak
+                        // 1 = LED açık, sonraki toggle'da kapanacak
 volatile int button_pressed = 0;
+volatile int timer_running = 0;
 uint32_t eventCounterL; // The event number for counter L
 uint16_t matchValueL;
 
 // Function prototypes
 void clock_init(void);
 void SCTimerL_init(void);
+void SCT0_IRQHandler(void);
 
 int main(void)
 {
@@ -33,54 +35,17 @@ int main(void)
     SYSCON_PRESETCTRL |=   0x400;
     GPIO_DIR0 &= ~(1<<15);               // PIO0_15 (pin 15) as input for button
     
-    // Initialize SCTimer
+    // Initialize SCTimer - this is the ONLY place where LED control is set up
     SCTimerL_init();
     
     while (1) {
-        // Check if button on PIO0_15 is pressed (active high when pressed)
-        if ((GPIO_B15 == 1) && (button_pressed == 0)) {
+        // Main program only detects button press and starts the timer
+        // LED manipulation is done entirely by SCTimer
+        if ((GPIO_B15 == 1) && (button_pressed == 0) && (timer_running == 0)) {
             button_pressed = 1; // Debounce: mark as pressed
+            timer_running = 1;  // Timer will start
             
-            // Stop the timer if it's running
-            SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
-            
-            // Clear counter L to 0
-            SCT0->CTRL |= (1 << 3);  // Set CLRCTR_L bit
-            
-            // Clear all previous output actions for OUT2
-            SCT0->OUT[2].CLR = 0;  // Clear the clear register
-            SCT0->OUT[2].SET = 0;  // Clear the set register
-            
-            // Create/recreate the event for match
-            SCTIMER_CreateAndScheduleEvent(SCT0,
-                                         kSCTIMER_MatchEventOnly,
-                                         matchValueL,
-                                         0,
-                                         kSCTIMER_Counter_L,
-                                         &eventCounterL);
-            
-            // Configure to stop when reaching matchValL (one-shot)
-            SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
-            
-            // Set event active direction
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                            kSCTIMER_ActiveIndependent,
-                                            eventCounterL);
-            
-            if (state == 0) {
-                // State 0: LED şu an KAPALI (OUT2=1), 1 saniye sonra YANACAK (OUT2=0)
-                // LED'i AÇMAK için OUT2'yi CLEAR (0) yapmalıyız
-                SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-                state = 1; // Sonraki basışta sönecek
-            }
-            else { // state == 1
-                // State 1: LED şu an AÇIK (OUT2=0), 1 saniye sonra SÖNECEK (OUT2=1)
-                // LED'i KAPATMAK için OUT2'yi SET (1) yapmalıyız
-                SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-                state = 0; // Sonraki basışta yanacak
-            }
-            
-            // Start the timer
+            // Just start the timer - SCTimer handles everything else
             SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L);
         }
         
@@ -120,7 +85,88 @@ void SCTimerL_init(void)
     // OUT2'yi HIGH (1) yaparak LED'i kapatıyoruz
     SCT0->OUTPUT |= (1 << 2);  // Set bit 2 (OUT2) to HIGH - LED OFF
     
+    // Create the match event for counter L
+    SCTIMER_CreateAndScheduleEvent(SCT0,
+                                 kSCTIMER_MatchEventOnly,
+                                 matchValueL,
+                                 0,
+                                 kSCTIMER_Counter_L,
+                                 &eventCounterL);
+    
+    // Configure to stop when reaching matchValL (one-shot)
+    SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
+    
+    // Set event active direction
+    SCTIMER_SetupEventActiveDirection(SCT0,
+                                    kSCTIMER_ActiveIndependent,
+                                    eventCounterL);
+    
+    // Initial state: LED is OFF, first button press will turn it ON after 1s
+    // LED'i AÇMAK için OUT2'yi CLEAR (0) yapmalıyız
+    SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+    
+    // Enable interrupt for this event
+    SCTIMER_EnableInterrupts(SCT0, (1 << eventCounterL));
+    
+    // Enable SCTimer interrupt in NVIC
+    EnableIRQ(SCT0_IRQn);
+    
     // Note: The timer will be started when button is pressed in main()
+}
+
+// SCTimer interrupt handler
+// This handler is called when the timer reaches matchValueL
+// It toggles the state and prepares for the next button press
+void SCT0_IRQHandler(void)
+{
+    // Check if our event triggered the interrupt
+    if (SCTIMER_GetStatusFlags(SCT0) & (1 << eventCounterL))
+    {
+        // Clear the interrupt flag
+        SCTIMER_ClearStatusFlags(SCT0, (1 << eventCounterL));
+        
+        // Timer has stopped (one-shot mode), mark it as not running
+        timer_running = 0;
+        
+        // Toggle state for next button press
+        state = 1 - state;
+        
+        // Reset counter to 0 for next time
+        SCT0->CTRL |= (1 << 3);  // Set CLRCTR_L bit
+        
+        // Clear previous output actions
+        SCT0->OUT[2].CLR = 0;
+        SCT0->OUT[2].SET = 0;
+        
+        // Recreate the event
+        SCTIMER_CreateAndScheduleEvent(SCT0,
+                                     kSCTIMER_MatchEventOnly,
+                                     matchValueL,
+                                     0,
+                                     kSCTIMER_Counter_L,
+                                     &eventCounterL);
+        
+        // Configure to stop when reaching matchValL
+        SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
+        
+        // Set event active direction
+        SCTIMER_SetupEventActiveDirection(SCT0,
+                                        kSCTIMER_ActiveIndependent,
+                                        eventCounterL);
+        
+        // Setup the action for the NEXT button press
+        if (state == 0) {
+            // Next: LED will turn ON (CLEAR OUT2)
+            SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+        }
+        else {
+            // Next: LED will turn OFF (SET OUT2)
+            SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+        }
+        
+        // Re-enable interrupt for next time
+        SCTIMER_EnableInterrupts(SCT0, (1 << eventCounterL));
+    }
 }
 
 void clock_init(void)     // Set up the clock source
