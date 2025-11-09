@@ -11,7 +11,8 @@
 #define CORE_CLOCK   6000000U
 
 // Global variables
-volatile int state = 0; // 0 = LED will turn ON after delay, 1 = LED will turn OFF after delay
+volatile int state = 0; // 0 = LED kapalı, butona basınca 1s sonra YANAR
+                        // 1 = LED açık, butona basınca 1s sonra SÖNER
 volatile int button_pressed = 0;
 uint32_t eventCounterL; // The event number for counter L
 uint16_t matchValueL;
@@ -35,9 +36,6 @@ int main(void)
     // Initialize SCTimer
     SCTimerL_init();
     
-    // At power ON, green LED on PIO0_27 must be OFF
-    // This is handled by the initial SCTimer output state
-    
     while (1) {
         // Check if button on PIO0_15 is pressed (active high when pressed)
         if ((GPIO_B15 == 1) && (button_pressed == 0)) {
@@ -46,18 +44,22 @@ int main(void)
             // Stop the timer if it's running
             SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
             
-            // Reset counter to 0
-            SCT0->CTRL |= (1 << 3);  // Set CLRCTR_L bit to clear counter L
+            // Clear counter L to 0
+            SCT0->CTRL |= (1 << 3);  // Set CLRCTR_L bit
             
-            // Recreate the event with the match value for 1 second
+            // Clear all previous output actions for OUT2
+            SCT0->OUT[2].CLR = 0;  // Clear the clear register
+            SCT0->OUT[2].SET = 0;  // Clear the set register
+            
+            // Create/recreate the event for match
             SCTIMER_CreateAndScheduleEvent(SCT0,
                                          kSCTIMER_MatchEventOnly,
                                          matchValueL,
-                                         0,                  // Not used for "Match Only"
+                                         0,
                                          kSCTIMER_Counter_L,
                                          &eventCounterL);
             
-            // Configure to stop when reaching matchValL
+            // Configure to stop when reaching matchValL (one-shot)
             SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
             
             // Set event active direction
@@ -66,16 +68,14 @@ int main(void)
                                             eventCounterL);
             
             if (state == 0) {
-                // State 0: LED is OFF, will turn ON after 1s
-                // Set OUTPUT 2 (turn LED ON) when counter reaches matchValL
+                // State 0: LED şu an KAPALI, 1 saniye sonra YANACAK
                 SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-                state = 1; // Next time, LED will turn OFF
+                state = 1; // Sonraki basışta sönecek
             }
             else { // state == 1
-                // State 1: LED is ON, will turn OFF after 1s
-                // Clear OUTPUT 2 (turn LED OFF) when counter reaches matchValL
+                // State 1: LED şu an AÇIK, 1 saniye sonra SÖNECEK
                 SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-                state = 0; // Next time, LED will turn ON
+                state = 0; // Sonraki basışta yanacak
             }
             
             // Start the timer
@@ -113,9 +113,9 @@ void SCTimerL_init(void)
     // For 1 second delay: 48kHz * 1s = 48000 counts
     matchValueL = 48000; // 1 second delay at 48kHz
     
-    // Set initial output state: LED OFF (output LOW)
-    // OUT2 is connected to PIO0_27 (Green LED)
-    SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, 0); // Clear on event 0 (never happens)
+    // Başlangıçta LED KAPALI olmalı (OUT2 = LOW)
+    // OUT2'yi force clear yapıyoruz
+    SCT0->OUTPUT = (SCT0->OUTPUT & ~(1 << 2));  // Clear bit 2 (OUT2) - LED OFF
     
     // Note: The timer will be started when button is pressed in main()
 }
