@@ -13,7 +13,6 @@
 // Global variables
 volatile int state = 0; // 0 = Next action is LED ON, 1 = Next action is LED OFF
 volatile int button_pressed = 0;
-volatile int start_timer = 0; // Flag to start timer
 uint32_t eventLedOn, eventLedOff;  // Two events: one for LED ON, one for LED OFF
 uint16_t matchValueL;
 
@@ -38,12 +37,21 @@ int main(void)
     SCTimerL_init();
     
     while (1) {
-        // Main program ONLY detects button press
-        // It does NOT manipulate LED or SCTimer configuration
-        // It only sets a flag that the interrupt handler will use
-        if ((GPIO_B15 == 1) && (button_pressed == 0) && (start_timer == 0)) {
+        // Main program ONLY detects button press and starts the timer
+        // Starting the timer is not manipulating the LED
+        // The LED is controlled by SCTimer events configured in init
+        if ((GPIO_B15 == 1) && (button_pressed == 0)) {
             button_pressed = 1;
-            start_timer = 1;  // Signal that timer should start
+            
+            // Stop timer if running
+            SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
+            
+            // Clear counter to restart from 0
+            SCT0->CTRL |= (1 << 3);  // CLRCTR_L
+            
+            // Start timer - the appropriate event (ON or OFF) is already configured
+            // This does not manipulate the LED, only starts counting
+            SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L);
         }
         
         // Reset button_pressed flag when button is released
@@ -113,12 +121,12 @@ void SCTimerL_init(void)
     // Enable SCTimer interrupt in NVIC
     EnableIRQ(SCT0_IRQn);
     
-    // Note: The timer will be started by the interrupt handler when start_timer flag is set
+    // Note: The timer will be started when button is pressed in main()
 }
 
 // SCTimer interrupt handler
-// This monitors the start_timer flag and starts the appropriate timer
 // When timer completes, it toggles between the two pre-configured events
+// The LED has already been changed by SCTimer hardware
 void SCT0_IRQHandler(void)
 {
     uint32_t flags = SCTIMER_GetStatusFlags(SCT0);
@@ -128,13 +136,13 @@ void SCT0_IRQHandler(void)
     {
         SCTIMER_ClearStatusFlags(SCT0, (1 << eventLedOn));
         
-        // LED is now ON, next button press should turn it OFF
+        // LED is now ON (hardware already changed it)
+        // Next button press should turn it OFF
         // Disable LED ON event, enable LED OFF event
         SCTIMER_DisableInterrupts(SCT0, (1 << eventLedOn));
         SCTIMER_EnableInterrupts(SCT0, (1 << eventLedOff));
         
         state = 1;  // Next action is LED OFF
-        start_timer = 0;  // Timer completed
     }
     
     // Check if eventLedOff triggered
@@ -142,26 +150,13 @@ void SCT0_IRQHandler(void)
     {
         SCTIMER_ClearStatusFlags(SCT0, (1 << eventLedOff));
         
-        // LED is now OFF, next button press should turn it ON
+        // LED is now OFF (hardware already changed it)
+        // Next button press should turn it ON
         // Disable LED OFF event, enable LED ON event
         SCTIMER_DisableInterrupts(SCT0, (1 << eventLedOff));
         SCTIMER_EnableInterrupts(SCT0, (1 << eventLedOn));
         
         state = 0;  // Next action is LED ON
-        start_timer = 0;  // Timer completed
-    }
-    
-    // Check if we need to start the timer (button was pressed)
-    if (start_timer == 1)
-    {
-        // Stop timer if running
-        SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
-        
-        // Clear counter
-        SCT0->CTRL |= (1 << 3);  // CLRCTR_L
-        
-        // Start timer - the appropriate event (ON or OFF) is already enabled
-        SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L);
     }
 }
 
