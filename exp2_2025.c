@@ -128,7 +128,6 @@ static void SCTimerL_init(void)
 
     /* Stop counter L after the match event in order to create a one-shot delay. */
     SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, sctEventMatchL);
-
 }
 
 static void SCTimerL_armDelayedTransition(bool turnLedOn)
