@@ -32,23 +32,33 @@ int main(void)
     SYSCON_PRESETCTRL &= ~(0x400);  // Peripheral reset control to gpio/gpio int
     SYSCON_PRESETCTRL |=   0x400;   // AO: Check.
 
-    GPIO_DIR0 &= (!(1<<25)); // pin 24 is B1
+    GPIO_DIR0 &= ~(1<<25); // pin 25 is B1 (input)
+    GPIO_DIR0 |= (1<<16);  // pin 16 is Blue LED (output for debug)
 
     SysTickConfig(SYSTEM_CORE_CLOCK/1000);  //setup systick clock interrupt @1ms
 
     InitPins();                           // Init board pins.
     clock_init();                         // Initialize processor clock.
-
+    
     CLOCK_EnableClock(kCLOCK_Sct);        // Enable clock of SCTimer.
 
-    SCTimerL_init();                      // Initialize SCTimer Counter L
+    SCTimerL_init();                      // Initialize SCTimer Counter L (includes pin routing)
 
     ledState = 0; // LEDs start in OFF state
 
     while (1)
     {
-        if ((GPIO_PIN0 & (1 << 25)) == 0) // when button 1 is pressed (active low)
+        // Try both button pin readings to see which works
+        uint32_t button_state = GPIO_PIN0 & (1 << 25);
+        
+        // Button pressed check (try active-low first)
+        if (button_state == 0) 
         {
+            // DEBUG: Toggle mavi LED immediately to show button works
+            GPIO_NOT0 = (1 << 16);  // Toggle pin 16 (Blue LED) for debug
+            delay_ms(100);
+            GPIO_NOT0 = (1 << 16);  // Toggle back
+            
             // Stop and reset counter L
             SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
             SCT0->COUNT = 0; // Reset counter (lower 16-bit for Counter L)
@@ -86,6 +96,20 @@ void SCTimerL_init(void) {
 
     SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
 
+    // Disable GPIO control on pin 27 (make it input so SCTimer can control it)
+    GPIO_DIR0 &= ~(1 << 27);  // Pin 27 as input (disable GPIO output)
+    
+    // Enable SWM clock to route SCTimer output to pin
+    CLOCK_EnableClock(kCLOCK_Swm);
+    
+    // Route SCT_OUT2 to PIO0_27 (Green LED)
+    SWM_SetMovablePinSelect(SWM0, kSWM_SCT_OUT2, kSWM_PortPin_P0_27);
+    
+    CLOCK_DisableClock(kCLOCK_Swm);
+
+    // Set SCTimer to control output direction (not GPIO)
+    SCT0->OUTPUTDIRCTRL |= (1 << 2);  // SCTimer controls OUT2 direction
+
     // Configure one event for 1 second match
     SCTIMER_CreateAndScheduleEvent(SCT0,
                                    kSCTIMER_MatchEventOnly,
@@ -105,8 +129,11 @@ void SCTimerL_init(void) {
     // Stop counter after match (one-shot)
     SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
 
-    // Set initial output to LOW (LED OFF at start - try active high)
-    SCT0->OUTPUT = 0x00;  // All outputs LOW (LED OFF)
+    // Set initial output: try HIGH to turn LED OFF (test both polarities)
+    SCT0->OUTPUT = (1 << 2);  // OUT2 HIGH - if LED still ON, it's active-high
+    
+    // Set conflict resolution: output value takes priority
+    SCT0->RES &= ~((0x3) << (2*2));  // Clear conflict resolution bits for OUT2
 }
 
 void clock_init(void) {    // Set up the clock source
