@@ -114,8 +114,17 @@ void SCTimerL_init(void)
     matchValueL = 48000; // 1 second delay at 48kHz
     
     // Başlangıçta LED KAPALI olmalı (OUT2 = LOW)
-    // OUT2'yi force clear yapıyoruz
-    SCT0->OUTPUT = (SCT0->OUTPUT & ~(1 << 2));  // Clear bit 2 (OUT2) - LED OFF
+    // OUT2'nin initial value'sunu LOW (0) yap
+    // SCT Output Register: bit 2 = OUT2
+    SCT0->OUTPUT &= ~(1 << 2);  // Clear bit 2 (OUT2) - LED OFF
+    
+    // Conflict resolution: force output to 0 regardless of events
+    // RES register: 00 = no change, 01 = set output, 10 = clear output, 11 = toggle
+    // Bits [5:4] control OUT2
+    SCT0->RES = (SCT0->RES & ~(0x3 << 4)) | (0x2 << 4);  // Force OUT2 to clear (0x2 = clear)
+    
+    // After a brief moment, return to normal operation (00 = follow events)
+    SCT0->RES = (SCT0->RES & ~(0x3 << 4));  // OUT2 normal mode
     
     // Note: The timer will be started when button is pressed in main()
 }
