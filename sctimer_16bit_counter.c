@@ -8,19 +8,21 @@
 #include "fsl_swm_connections.h"
 #include "fsl_power.h"
 
-#define SYSTEM_CORE_CLOCK 15000000UL   //Declare system clock as 30MHz
-// (The clock speed has been set in "init.c" file to 30MHz.)
+#define SYSTEM_CORE_CLOCK 6000000UL   //Declare system clock as 6MHz
+// (The clock speed has been set to 6MHz.)
 
 static inline uint32_t SysTickConfig(uint32_t ticks);
 void SysTick_Handler(void);  //our systick interrupt handler
 void delay_ms(uint32_t ms);//delay (ms)
 void clock_init(void);
+void SCTimerL_init(void);
 
 volatile uint32_t delaytime; // This is decremented by SysTick_Handler.
 volatile int state = 0;
 volatile int B1Pressed = 0; // pin 24
 volatile int B2Pressed = 0; // pin 15
 volatile int ledState = 0; // 0 = OFF, 1 = ON
+uint32_t eventCounterL; // Event number for Counter L
 
 int main(void)
 {
@@ -34,63 +36,66 @@ int main(void)
 
     SysTickConfig(SYSTEM_CORE_CLOCK/1000);  //setup systick clock interrupt @1ms
 
-    sctimer_config_t sctimerConfig;
-  uint32_t eventCounterL, eventCounterH; // The event number for counter L and H
-  uint16_t matchValueL, matchValueH;
+    InitPins();                           // Init board pins.
+    clock_init();                         // Initialize processor clock.
 
-  InitPins();                           // Init board pins.
-  clock_init();                         // Initialize processor clock.
+    CLOCK_EnableClock(kCLOCK_Sct);        // Enable clock of SCTimer.
 
-  CLOCK_EnableClock(kCLOCK_Sct);        // Enable clock of SCTimer.
+    SCTimerL_init();                      // Initialize SCTimer Counter L
 
-  // SCTimer in 16-bit mode: two independent 16-bit counters (L and H).
-  // Counter 'L' controls OUT2 -> PIO0_27 (Green LED on Alakart).
-  // Counter 'H' controls OUT4 -> PIO0_16 (Blue  LED on Alakart).
-
-  SCTIMER_GetDefaultConfig(&sctimerConfig);
-
-  // Timer config
-  sctimerConfig.enableCounterUnify = false;                  // Use as two 16-bit counters.
-  sctimerConfig.clockMode          = kSCTIMER_System_ClockMode; // System clock as SCT input
-  sctimerConfig.enableBidirection_l = false;                 // Up-counting
-  sctimerConfig.enableBidirection_h = false;                 // Up-counting
-  // Prescaler is 8-bit (CTRL). Value+1 is used.
-  sctimerConfig.prescale_l = 249; // -> 250
-  sctimerConfig.prescale_h = 249; // -> 250
-
-  SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
-
-  // Set initial output to HIGH (LEDs OFF at start - active low)
-  SCT0->OUTPUT = 0xFF;  // All outputs HIGH (LEDs OFF)
-  SCT0->RES = 0x00;     // No conflict resolution (outputs stay as set)
-
-  matchValueL = 60000; // 16-bit match value for Counter L (1 second)
-  matchValueH = 60000; // 16-bit match value for Counter H (1 second)
-
-  ledState = 0; // LEDs start in OFF state
+    ledState = 0; // LEDs start in OFF state
 
     while (1)
     {
         if (GPIO_B25 == 1) // when button 1 is pressed
         {
-            // Wait 1 second first
-            delay_ms(1000);
+            // Stop and reset counter L
+            SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
+            SCT0->COUNT_L = 0; // Reset counter L to 0
             
-            // Toggle LED state
+            // Reconfigure event based on current LED state
             if (ledState == 0) 
             {
-                // Turn ON both LEDs (set LOW for active-low)
-                SCT0->OUTPUT &= ~(1 << 2);  // Set OUT2 LOW (Green LED ON)
-                SCT0->OUTPUT &= ~(1 << 4);  // Set OUT4 LOW (Blue LED ON)
-                ledState = 1; // Update state to ON
+                // LED is OFF, configure to turn ON after 1 second
+                // Event: match at 48000 (1 second with 12MHz/250 = 48kHz)
+                SCTIMER_CreateAndScheduleEvent(SCT0,
+                                     kSCTIMER_MatchEventOnly,
+                                     48000,  // 1 second at 48kHz
+                                     0,
+                                     kSCTIMER_Counter_L,
+                                     &eventCounterL);
+                
+                // CLEAR OUT2 (turn LED ON - active low: pin goes LOW)
+                SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+                
+                ledState = 1; // Next state will be ON
             }
             else 
             {
-                // Turn OFF both LEDs (set HIGH for active-low)
-                SCT0->OUTPUT |= (1 << 2);   // Set OUT2 HIGH (Green LED OFF)
-                SCT0->OUTPUT |= (1 << 4);   // Set OUT4 HIGH (Blue LED OFF)
-                ledState = 0; // Update state to OFF
+                // LED is ON, configure to turn OFF after 1 second
+                SCTIMER_CreateAndScheduleEvent(SCT0,
+                                     kSCTIMER_MatchEventOnly,
+                                     48000,  // 1 second at 48kHz
+                                     0,
+                                     kSCTIMER_Counter_L,
+                                     &eventCounterL);
+                
+                // SET OUT2 (turn LED OFF - active low: pin goes HIGH)
+                SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+                
+                ledState = 0; // Next state will be OFF
             }
+            
+            // Setup event active direction
+            SCTIMER_SetupEventActiveDirection(SCT0,
+                                    kSCTIMER_ActiveIndependent,
+                                    eventCounterL);
+            
+            // Stop counter after match (one-shot)
+            SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
+            
+            // Start counter L
+            SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L);
             
             // Wait for button release (debounce)
             while (GPIO_B25 == 1) 
@@ -100,6 +105,31 @@ int main(void)
             delay_ms(50); // Additional debounce delay
         }
     }
+}
+
+void SCTimerL_init(void) {
+    sctimer_config_t sctimerConfig;
+
+    // SCTimer in 16-bit mode: two independent 16-bit counters (L and H).
+    // Counter 'L' controls OUT2 -> PIO0_27 (Green LED on Alakart).
+
+    SCTIMER_GetDefaultConfig(&sctimerConfig);
+
+    // Timer config
+    sctimerConfig.enableCounterUnify = false;                  // Use as two 16-bit counters.
+    sctimerConfig.clockMode          = kSCTIMER_System_ClockMode; // System clock as SCT input
+    sctimerConfig.enableBidirection_l = false;                 // Up-counting
+    sctimerConfig.enableBidirection_h = false;                 // Up-counting
+    // Prescaler is 8-bit (CTRL). Value+1 is used.
+    // With 12MHz SCT clock and prescaler 250: 12MHz/250 = 48kHz
+    sctimerConfig.prescale_l = 249; // -> 250
+    sctimerConfig.prescale_h = 249; // -> 250
+
+    SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
+
+    // Set initial output to HIGH (LED OFF at start - active low)
+    SCT0->OUTPUT |= (1 << 2);  // OUT2 HIGH (LED OFF)
+    SCT0->RES = 0x00;          // No conflict resolution
 }
 
 void clock_init(void) {    // Set up the clock source
