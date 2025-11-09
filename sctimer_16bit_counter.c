@@ -47,58 +47,17 @@ int main(void)
 
     while (1)
     {
-        if (GPIO_B25 == 1) // when button 1 is pressed
+        if ((GPIO_PIN0 & (1 << 25)) == 0) // when button 1 is pressed (active low)
         {
             // Stop and reset counter L
             SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
             SCT0->COUNT = 0; // Reset counter (lower 16-bit for Counter L)
             
-            // Reconfigure event based on current LED state
-            if (ledState == 0) 
-            {
-                // LED is OFF, configure to turn ON after 1 second
-                // Event: match at 48000 (1 second with 12MHz/250 = 48kHz)
-                SCTIMER_CreateAndScheduleEvent(SCT0,
-                                     kSCTIMER_MatchEventOnly,
-                                     48000,  // 1 second at 48kHz
-                                     0,
-                                     kSCTIMER_Counter_L,
-                                     &eventCounterL);
-                
-                // CLEAR OUT2 (turn LED ON - active low: pin goes LOW)
-                SCTIMER_SetupOutputClearAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-                
-                ledState = 1; // Next state will be ON
-            }
-            else 
-            {
-                // LED is ON, configure to turn OFF after 1 second
-                SCTIMER_CreateAndScheduleEvent(SCT0,
-                                     kSCTIMER_MatchEventOnly,
-                                     48000,  // 1 second at 48kHz
-                                     0,
-                                     kSCTIMER_Counter_L,
-                                     &eventCounterL);
-                
-                // SET OUT2 (turn LED OFF - active low: pin goes HIGH)
-                SCTIMER_SetupOutputSetAction(SCT0, kSCTIMER_Out_2, eventCounterL);
-                
-                ledState = 0; // Next state will be OFF
-            }
-            
-            // Setup event active direction
-            SCTIMER_SetupEventActiveDirection(SCT0,
-                                    kSCTIMER_ActiveIndependent,
-                                    eventCounterL);
-            
-            // Stop counter after match (one-shot)
-            SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
-            
-            // Start counter L
+            // Start counter L (will toggle LED after 1 second)
             SCTIMER_StartTimer(SCT0, kSCTIMER_Counter_L);
             
             // Wait for button release (debounce)
-            while (GPIO_B25 == 1) 
+            while ((GPIO_PIN0 & (1 << 25)) == 0) 
             {
                 delay_ms(10);
             }
@@ -127,9 +86,27 @@ void SCTimerL_init(void) {
 
     SCTIMER_Init(SCT0, &sctimerConfig);    // Initialize SCTimer module
 
-    // Set initial output to HIGH (LED OFF at start - active low)
-    SCT0->OUTPUT |= (1 << 2);  // OUT2 HIGH (LED OFF)
-    SCT0->RES = 0x00;          // No conflict resolution
+    // Configure one event for 1 second match
+    SCTIMER_CreateAndScheduleEvent(SCT0,
+                                   kSCTIMER_MatchEventOnly,
+                                   48000,  // 1 second at 48kHz
+                                   0,
+                                   kSCTIMER_Counter_L,
+                                   &eventCounterL);
+
+    // Setup toggle action on OUT2
+    SCTIMER_SetupOutputToggleAction(SCT0, kSCTIMER_Out_2, eventCounterL);
+
+    // Event active direction
+    SCTIMER_SetupEventActiveDirection(SCT0,
+                                      kSCTIMER_ActiveIndependent,
+                                      eventCounterL);
+
+    // Stop counter after match (one-shot)
+    SCTIMER_SetupCounterStopAction(SCT0, kSCTIMER_Counter_L, eventCounterL);
+
+    // Set initial output to LOW (LED OFF at start - try active high)
+    SCT0->OUTPUT = 0x00;  // All outputs LOW (LED OFF)
 }
 
 void clock_init(void) {    // Set up the clock source
