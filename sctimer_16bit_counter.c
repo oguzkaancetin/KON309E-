@@ -51,7 +51,7 @@ int main(void)
         {
             // Stop and reset counter L
             SCTIMER_StopTimer(SCT0, kSCTIMER_Counter_L);
-            SCT0->COUNT_L = 0; // Reset counter L to 0
+            SCT0->COUNT = 0; // Reset counter (lower 16-bit for Counter L)
             
             // Reconfigure event based on current LED state
             if (ledState == 0) 
