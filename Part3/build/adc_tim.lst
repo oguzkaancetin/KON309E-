@@ -1,0 +1,518 @@
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 1
+
+
+   1              		.cpu cortex-m0plus
+   2              		.arch armv6s-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 4
+  11              		.eabi_attribute 34, 0
+  12              		.eabi_attribute 18, 4
+  13              		.file	"part3.c"
+  14              		.text
+  15              		.section	.rodata.str1.1,"aMS",%progbits,1
+  16              	.LC1:
+  17 0000 43682025 		.ascii	"Ch %d result = %d    \015\000"
+  17      64207265 
+  17      73756C74 
+  17      203D2025 
+  17      64202020 
+  18              		.text
+  19              		.align	1
+  20              		.global	ADC0_SEQA_IRQHandler
+  21              		.syntax unified
+  22              		.code	16
+  23              		.thumb_func
+  25              	ADC0_SEQA_IRQHandler:
+  26              		@ args = 0, pretend = 0, frame = 0
+  27              		@ frame_needed = 0, uses_anonymous_args = 0
+  28 0000 70B5     		push	{r4, r5, r6, lr}
+  29 0002 8026     		movs	r6, #128
+  30 0004 0F4D     		ldr	r5, .L6
+  31 0006 7605     		lsls	r6, r6, #21
+  32 0008 AB6E     		ldr	r3, [r5, #104]
+  33 000a 3342     		tst	r3, r6
+  34 000c 19D0     		beq	.L1
+  35 000e 0E4C     		ldr	r4, .L6+4
+  36 0010 0121     		movs	r1, #1
+  37 0012 2268     		ldr	r2, [r4]
+  38 0014 2800     		movs	r0, r5
+  39 0016 FFF7FEFF 		bl	ADC_GetChannelConversionResult
+  40 001a AE66     		str	r6, [r5, #104]
+  41 001c 2368     		ldr	r3, [r4]
+  42 001e 1868     		ldr	r0, [r3]
+  43 0020 FFF7FEFF 		bl	__aeabi_ui2d
+  44 0024 094A     		ldr	r2, .L6+8
+  45 0026 0A4B     		ldr	r3, .L6+12
+  46 0028 FFF7FEFF 		bl	__aeabi_dmul
+  47 002c FFF7FEFF 		bl	__aeabi_d2iz
+  48 0030 2368     		ldr	r3, [r4]
+  49 0032 0200     		movs	r2, r0
+  50 0034 9968     		ldr	r1, [r3, #8]
+  51 0036 6060     		str	r0, [r4, #4]
+  52 0038 0648     		ldr	r0, .L6+16
+  53 003a FFF7FEFF 		bl	DbgConsole_Printf
+  54 003e 0123     		movs	r3, #1
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 2
+
+
+  55 0040 2372     		strb	r3, [r4, #8]
+  56              	.L1:
+  57              		@ sp needed
+  58 0042 70BD     		pop	{r4, r5, r6, pc}
+  59              	.L7:
+  60              		.align	2
+  61              	.L6:
+  62 0044 00C00140 		.word	1073856512
+  63 0048 00000000 		.word	.LANCHOR0
+  64 004c E1287975 		.word	1970874593
+  65 0050 8E01993F 		.word	1066992014
+  66 0054 00000000 		.word	.LC1
+  68              		.section	.rodata.str1.1
+  69              	.LC3:
+  70 0017 41444320 		.ascii	"ADC Calibration Done.\015\012\000"
+  70      43616C69 
+  70      62726174 
+  70      696F6E20 
+  70      446F6E65 
+  71              	.LC5:
+  72 002f 41444320 		.ascii	"ADC Calibration Failed.\015\012\000"
+  72      43616C69 
+  72      62726174 
+  72      696F6E20 
+  72      4661696C 
+  73              		.text
+  74              		.align	1
+  75              		.global	adc_init
+  76              		.syntax unified
+  77              		.code	16
+  78              		.thumb_func
+  80              	adc_init:
+  81              		@ args = 0, pretend = 0, frame = 0
+  82              		@ frame_needed = 0, uses_anonymous_args = 0
+  83 0058 8023     		movs	r3, #128
+  84 005a 0E4A     		ldr	r2, .L12
+  85 005c 5B04     		lsls	r3, r3, #17
+  86 005e D06F     		ldr	r0, [r2, #124]
+  87 0060 10B5     		push	{r4, lr}
+  88 0062 0343     		orrs	r3, r0
+  89 0064 D367     		str	r3, [r2, #124]
+  90 0066 8E22     		movs	r2, #142
+  91 0068 1020     		movs	r0, #16
+  92 006a 0B49     		ldr	r1, .L12+4
+  93 006c 9200     		lsls	r2, r2, #2
+  94 006e 8B58     		ldr	r3, [r1, r2]
+  95 0070 8343     		bics	r3, r0
+  96 0072 8B50     		str	r3, [r1, r2]
+  97 0074 0D38     		subs	r0, r0, #13
+  98 0076 FFF7FEFF 		bl	CLOCK_GetFreq
+  99 007a 0100     		movs	r1, r0
+ 100 007c 0748     		ldr	r0, .L12+8
+ 101 007e FFF7FEFF 		bl	ADC_DoSelfCalibration
+ 102 0082 0028     		cmp	r0, #0
+ 103 0084 03D0     		beq	.L9
+ 104 0086 0648     		ldr	r0, .L12+12
+ 105              	.L11:
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 3
+
+
+ 106 0088 FFF7FEFF 		bl	DbgConsole_Printf
+ 107              		@ sp needed
+ 108 008c 10BD     		pop	{r4, pc}
+ 109              	.L9:
+ 110 008e 0548     		ldr	r0, .L12+16
+ 111 0090 FAE7     		b	.L11
+ 112              	.L13:
+ 113 0092 C046     		.align	2
+ 114              	.L12:
+ 115 0094 04800440 		.word	1074036740
+ 116 0098 00800440 		.word	1074036736
+ 117 009c 00C00140 		.word	1073856512
+ 118 00a0 17000000 		.word	.LC3
+ 119 00a4 2F000000 		.word	.LC5
+ 121              		.align	1
+ 122              		.global	ADC_Configuration
+ 123              		.syntax unified
+ 124              		.code	16
+ 125              		.thumb_func
+ 127              	ADC_Configuration:
+ 128              		@ args = 0, pretend = 0, frame = 24
+ 129              		@ frame_needed = 0, uses_anonymous_args = 0
+ 130 00a8 0123     		movs	r3, #1
+ 131 00aa 30B5     		push	{r4, r5, lr}
+ 132 00ac 87B0     		sub	sp, sp, #28
+ 133 00ae 6A46     		mov	r2, sp
+ 134 00b0 0193     		str	r3, [sp, #4]
+ 135 00b2 0023     		movs	r3, #0
+ 136 00b4 134C     		ldr	r4, .L18
+ 137 00b6 01A9     		add	r1, sp, #4
+ 138 00b8 0500     		movs	r5, r0
+ 139 00ba 2000     		movs	r0, r4
+ 140 00bc 1381     		strh	r3, [r2, #8]
+ 141 00be FFF7FEFF 		bl	ADC_Init
+ 142 00c2 0223     		movs	r3, #2
+ 143 00c4 0393     		str	r3, [sp, #12]
+ 144 00c6 0133     		adds	r3, r3, #1
+ 145 00c8 0493     		str	r3, [sp, #16]
+ 146 00ca 0F4B     		ldr	r3, .L18+4
+ 147 00cc 2000     		movs	r0, r4
+ 148 00ce 03A9     		add	r1, sp, #12
+ 149 00d0 0593     		str	r3, [sp, #20]
+ 150 00d2 FFF7FEFF 		bl	ADC_SetConvSeqAConfig
+ 151 00d6 8023     		movs	r3, #128
+ 152 00d8 A268     		ldr	r2, [r4, #8]
+ 153 00da 1B06     		lsls	r3, r3, #24
+ 154 00dc 1343     		orrs	r3, r2
+ 155 00de A360     		str	r3, [r4, #8]
+ 156 00e0 8023     		movs	r3, #128
+ 157 00e2 A268     		ldr	r2, [r4, #8]
+ 158 00e4 DB04     		lsls	r3, r3, #19
+ 159 00e6 1343     		orrs	r3, r2
+ 160 00e8 A360     		str	r3, [r4, #8]
+ 161              	.L15:
+ 162 00ea 2A00     		movs	r2, r5
+ 163 00ec 0121     		movs	r1, #1
+ 164 00ee 0548     		ldr	r0, .L18
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 4
+
+
+ 165 00f0 FFF7FEFF 		bl	ADC_GetChannelConversionResult
+ 166 00f4 0028     		cmp	r0, #0
+ 167 00f6 F8D0     		beq	.L15
+ 168 00f8 2900     		movs	r1, r5
+ 169 00fa 0248     		ldr	r0, .L18
+ 170 00fc FFF7FEFF 		bl	ADC_GetConvSeqAGlobalConversionResult
+ 171 0100 07B0     		add	sp, sp, #28
+ 172              		@ sp needed
+ 173 0102 30BD     		pop	{r4, r5, pc}
+ 174              	.L19:
+ 175              		.align	2
+ 176              	.L18:
+ 177 0104 00C00140 		.word	1073856512
+ 178 0108 01000001 		.word	16777217
+ 180              		.align	1
+ 181              		.global	SCT_Configuration
+ 182              		.syntax unified
+ 183              		.code	16
+ 184              		.thumb_func
+ 186              	SCT_Configuration:
+ 187              		@ args = 0, pretend = 0, frame = 16
+ 188              		@ frame_needed = 0, uses_anonymous_args = 0
+ 189 010c 8023     		movs	r3, #128
+ 190 010e 70B5     		push	{r4, r5, r6, lr}
+ 191 0110 1C4A     		ldr	r2, .L21
+ 192 0112 5B00     		lsls	r3, r3, #1
+ 193 0114 D16F     		ldr	r1, [r2, #124]
+ 194 0116 86B0     		sub	sp, sp, #24
+ 195 0118 0B43     		orrs	r3, r1
+ 196 011a D367     		str	r3, [r2, #124]
+ 197 011c 03A8     		add	r0, sp, #12
+ 198 011e FFF7FEFF 		bl	SCTIMER_GetDefaultConfig
+ 199 0122 0026     		movs	r6, #0
+ 200 0124 6B46     		mov	r3, sp
+ 201 0126 6A46     		mov	r2, sp
+ 202 0128 9E81     		strh	r6, [r3, #12]
+ 203 012a DE73     		strb	r6, [r3, #15]
+ 204 012c F923     		movs	r3, #249
+ 205 012e 164C     		ldr	r4, .L21+4
+ 206 0130 03A9     		add	r1, sp, #12
+ 207 0132 2000     		movs	r0, r4
+ 208 0134 5374     		strb	r3, [r2, #17]
+ 209 0136 0125     		movs	r5, #1
+ 210 0138 FFF7FEFF 		bl	SCTIMER_Init
+ 211 013c 8021     		movs	r1, #128
+ 212 013e 02AB     		add	r3, sp, #8
+ 213 0140 0193     		str	r3, [sp, #4]
+ 214 0142 0095     		str	r5, [sp]
+ 215 0144 3300     		movs	r3, r6
+ 216 0146 2000     		movs	r0, r4
+ 217 0148 104A     		ldr	r2, .L21+8
+ 218 014a 4901     		lsls	r1, r1, #5
+ 219 014c FFF7FEFF 		bl	SCTIMER_CreateAndScheduleEvent
+ 220 0150 2000     		movs	r0, r4
+ 221 0152 029A     		ldr	r2, [sp, #8]
+ 222 0154 0321     		movs	r1, #3
+ 223 0156 FFF7FEFF 		bl	SCTIMER_SetupOutputToggleAction
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 5
+
+
+ 224 015a 029B     		ldr	r3, [sp, #8]
+ 225 015c C121     		movs	r1, #193
+ 226 015e 9D40     		lsls	r5, r5, r3
+ 227 0160 2289     		ldrh	r2, [r4, #8]
+ 228 0162 DB00     		lsls	r3, r3, #3
+ 229 0164 2A43     		orrs	r2, r5
+ 230 0166 92B2     		uxth	r2, r2
+ 231 0168 2281     		strh	r2, [r4, #8]
+ 232 016a 1B19     		adds	r3, r3, r4
+ 233 016c 8900     		lsls	r1, r1, #2
+ 234 016e 5A58     		ldr	r2, [r3, r1]
+ 235 0170 0748     		ldr	r0, .L21+12
+ 236 0172 0240     		ands	r2, r0
+ 237 0174 5A50     		str	r2, [r3, r1]
+ 238 0176 0422     		movs	r2, #4
+ 239 0178 A388     		ldrh	r3, [r4, #4]
+ 240 017a 9343     		bics	r3, r2
+ 241 017c A380     		strh	r3, [r4, #4]
+ 242 017e 06B0     		add	sp, sp, #24
+ 243              		@ sp needed
+ 244 0180 70BD     		pop	{r4, r5, r6, pc}
+ 245              	.L22:
+ 246 0182 C046     		.align	2
+ 247              	.L21:
+ 248 0184 04800440 		.word	1074036740
+ 249 0188 00400050 		.word	1342193664
+ 250 018c 88130000 		.word	5000
+ 251 0190 FFFF9FFF 		.word	-6291457
+ 253              		.align	1
+ 254              		.global	uart_init
+ 255              		.syntax unified
+ 256              		.code	16
+ 257              		.thumb_func
+ 259              	uart_init:
+ 260              		@ args = 0, pretend = 0, frame = 0
+ 261              		@ frame_needed = 0, uses_anonymous_args = 0
+ 262 0194 70B5     		push	{r4, r5, r6, lr}
+ 263 0196 FFF7FEFF 		bl	CLOCK_GetMainClkFreq
+ 264              		@ sp needed
+ 265 019a 8023     		movs	r3, #128
+ 266 019c 0125     		movs	r5, #1
+ 267 019e 094A     		ldr	r2, .L24
+ 268 01a0 DB01     		lsls	r3, r3, #7
+ 269 01a2 D16F     		ldr	r1, [r2, #124]
+ 270 01a4 0400     		movs	r4, r0
+ 271 01a6 0B43     		orrs	r3, r1
+ 272 01a8 D367     		str	r3, [r2, #124]
+ 273 01aa 074B     		ldr	r3, .L24+4
+ 274 01ac 0320     		movs	r0, #3
+ 275 01ae 1D60     		str	r5, [r3]
+ 276 01b0 FFF7FEFF 		bl	RESET_PeripheralReset
+ 277 01b4 E121     		movs	r1, #225
+ 278 01b6 2A00     		movs	r2, r5
+ 279 01b8 2300     		movs	r3, r4
+ 280 01ba 4902     		lsls	r1, r1, #9
+ 281 01bc 0020     		movs	r0, #0
+ 282 01be FFF7FEFF 		bl	DbgConsole_Init
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 6
+
+
+ 283 01c2 70BD     		pop	{r4, r5, r6, pc}
+ 284              	.L25:
+ 285              		.align	2
+ 286              	.L24:
+ 287 01c4 04800440 		.word	1074036740
+ 288 01c8 94800440 		.word	1074036884
+ 290              		.align	1
+ 291              		.global	clock_init
+ 292              		.syntax unified
+ 293              		.code	16
+ 294              		.thumb_func
+ 296              	clock_init:
+ 297              		@ args = 0, pretend = 0, frame = 8
+ 298              		@ frame_needed = 0, uses_anonymous_args = 0
+ 299 01cc 8E23     		movs	r3, #142
+ 300 01ce 73B5     		push	{r0, r1, r4, r5, r6, lr}
+ 301 01d0 0125     		movs	r5, #1
+ 302              		@ sp needed
+ 303 01d2 0221     		movs	r1, #2
+ 304 01d4 0026     		movs	r6, #0
+ 305 01d6 0F4C     		ldr	r4, .L27
+ 306 01d8 9B00     		lsls	r3, r3, #2
+ 307 01da E258     		ldr	r2, [r4, r3]
+ 308 01dc 6846     		mov	r0, sp
+ 309 01de AA43     		bics	r2, r5
+ 310 01e0 E250     		str	r2, [r4, r3]
+ 311 01e2 E258     		ldr	r2, [r4, r3]
+ 312 01e4 8A43     		bics	r2, r1
+ 313 01e6 E250     		str	r2, [r4, r3]
+ 314 01e8 0B4B     		ldr	r3, .L27+4
+ 315 01ea 1E60     		str	r6, [r3]
+ 316 01ec 6B46     		mov	r3, sp
+ 317 01ee 1E71     		strb	r6, [r3, #4]
+ 318 01f0 0A4B     		ldr	r3, .L27+8
+ 319 01f2 0093     		str	r3, [sp]
+ 320 01f4 FFF7FEFF 		bl	CLOCK_InitSystemPll
+ 321 01f8 C020     		movs	r0, #192
+ 322 01fa 8000     		lsls	r0, r0, #2
+ 323 01fc FFF7FEFF 		bl	CLOCK_SetMainClkSrc
+ 324 0200 FF22     		movs	r2, #255
+ 325 0202 074B     		ldr	r3, .L27+12
+ 326 0204 1E60     		str	r6, [r3]
+ 327 0206 A36F     		ldr	r3, [r4, #120]
+ 328 0208 9343     		bics	r3, r2
+ 329 020a 1D43     		orrs	r5, r3
+ 330 020c A567     		str	r5, [r4, #120]
+ 331 020e FFF7FEFF 		bl	SystemCoreClockUpdate
+ 332 0212 73BD     		pop	{r0, r1, r4, r5, r6, pc}
+ 333              	.L28:
+ 334              		.align	2
+ 335              	.L27:
+ 336 0214 00800440 		.word	1074036736
+ 337 0218 40800440 		.word	1074036800
+ 338 021c 00879303 		.word	60000000
+ 339 0220 E0800440 		.word	1074036960
+ 341              		.section	.rodata.str1.1
+ 342              	.LC8:
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 7
+
+
+ 343 0049 41444320 		.ascii	"ADC interrupt example.\015\012\000"
+ 343      696E7465 
+ 343      72727570 
+ 343      74206578 
+ 343      616D706C 
+ 344              	.LC10:
+ 345 0062 436F6E66 		.ascii	"Configuration Done.\015\012\012\000"
+ 345      69677572 
+ 345      6174696F 
+ 345      6E20446F 
+ 345      6E652E0D 
+ 346              		.section	.text.startup,"ax",%progbits
+ 347              		.align	1
+ 348              		.global	main
+ 349              		.syntax unified
+ 350              		.code	16
+ 351              		.thumb_func
+ 353              	main:
+ 354              		@ args = 0, pretend = 0, frame = 40
+ 355              		@ frame_needed = 0, uses_anonymous_args = 0
+ 356 0000 30B5     		push	{r4, r5, lr}
+ 357 0002 1E4D     		ldr	r5, .L31
+ 358 0004 8DB0     		sub	sp, sp, #52
+ 359 0006 08AC     		add	r4, sp, #32
+ 360 0008 2C60     		str	r4, [r5]
+ 361 000a FFF7FEFF 		bl	InitPins
+ 362 000e FFF7FEFF 		bl	clock_init
+ 363 0012 FFF7FEFF 		bl	uart_init
+ 364 0016 1A48     		ldr	r0, .L31+4
+ 365 0018 FFF7FEFF 		bl	DbgConsole_Printf
+ 366 001c FFF7FEFF 		bl	SCT_Configuration
+ 367 0020 FFF7FEFF 		bl	adc_init
+ 368 0024 2000     		movs	r0, r4
+ 369 0026 FFF7FEFF 		bl	ADC_Configuration
+ 370 002a 0123     		movs	r3, #1
+ 371 002c 154A     		ldr	r2, .L31+8
+ 372 002e 516E     		ldr	r1, [r2, #100]
+ 373 0030 0B43     		orrs	r3, r1
+ 374 0032 5366     		str	r3, [r2, #100]
+ 375 0034 8022     		movs	r2, #128
+ 376 0036 144B     		ldr	r3, .L31+12
+ 377 0038 5202     		lsls	r2, r2, #9
+ 378 003a 1A60     		str	r2, [r3]
+ 379 003c 134C     		ldr	r4, .L31+16
+ 380 003e 1448     		ldr	r0, .L31+20
+ 381 0040 FFF7FEFF 		bl	DbgConsole_Printf
+ 382 0044 05A8     		add	r0, sp, #20
+ 383 0046 FFF7FEFF 		bl	SCTIMER_GetDefaultConfig
+ 384 004a 05A9     		add	r1, sp, #20
+ 385 004c 2000     		movs	r0, r4
+ 386 004e FFF7FEFF 		bl	SCTIMER_Init
+ 387 0052 8223     		movs	r3, #130
+ 388 0054 03A9     		add	r1, sp, #12
+ 389 0056 5B00     		lsls	r3, r3, #1
+ 390 0058 0B80     		strh	r3, [r1]
+ 391 005a 6B68     		ldr	r3, [r5, #4]
+ 392 005c 0022     		movs	r2, #0
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 8
+
+
+ 393 005e 8B70     		strb	r3, [r1, #2]
+ 394 0060 04AB     		add	r3, sp, #16
+ 395 0062 0193     		str	r3, [sp, #4]
+ 396 0064 0B4B     		ldr	r3, .L31+24
+ 397 0066 2000     		movs	r0, r4
+ 398 0068 0093     		str	r3, [sp]
+ 399 006a 0B4B     		ldr	r3, .L31+28
+ 400 006c FFF7FEFF 		bl	SCTIMER_SetupPwm
+ 401 0070 0422     		movs	r2, #4
+ 402 0072 6368     		ldr	r3, [r4, #4]
+ 403 0074 9343     		bics	r3, r2
+ 404 0076 6360     		str	r3, [r4, #4]
+ 405              	.L30:
+ 406 0078 FEE7     		b	.L30
+ 407              	.L32:
+ 408 007a C046     		.align	2
+ 409              	.L31:
+ 410 007c 00000000 		.word	.LANCHOR0
+ 411 0080 49000000 		.word	.LC8
+ 412 0084 00C00140 		.word	1073856512
+ 413 0088 00E100E0 		.word	-536813312
+ 414 008c 00400050 		.word	1342193664
+ 415 0090 62000000 		.word	.LC10
+ 416 0094 80C3C901 		.word	30000000
+ 417 0098 10270000 		.word	10000
+ 419              		.global	result1
+ 420              		.global	ADCConvCompleteFlag
+ 421              		.global	ADCResultPtr
+ 422              		.bss
+ 423              		.align	2
+ 424              		.set	.LANCHOR0,. + 0
+ 427              	ADCResultPtr:
+ 428 0000 00000000 		.space	4
+ 431              	result1:
+ 432 0004 00000000 		.space	4
+ 435              	ADCConvCompleteFlag:
+ 436 0008 00       		.space	1
+ 437              		.global	__aeabi_d2iz
+ 438              		.global	__aeabi_dmul
+ 439              		.global	__aeabi_ui2d
+ 440              		.ident	"GCC: (Arm GNU Toolchain 14.3.Rel1 (Build arm-14.174)) 14.3.1 20250623"
+ARM GAS  C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s 			page 9
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 part3.c
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:19     .text:00000000 $t
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:25     .text:00000000 ADC0_SEQA_IRQHandler
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:62     .text:00000044 $d
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:74     .text:00000058 $t
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:80     .text:00000058 adc_init
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:115    .text:00000094 $d
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:121    .text:000000a8 $t
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:127    .text:000000a8 ADC_Configuration
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:177    .text:00000104 $d
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:180    .text:0000010c $t
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:186    .text:0000010c SCT_Configuration
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:248    .text:00000184 $d
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:253    .text:00000194 $t
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:259    .text:00000194 uart_init
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:287    .text:000001c4 $d
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:290    .text:000001cc $t
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:296    .text:000001cc clock_init
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:336    .text:00000214 $d
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:347    .text.startup:00000000 $t
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:353    .text.startup:00000000 main
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:410    .text.startup:0000007c $d
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:431    .bss:00000004 result1
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:435    .bss:00000008 ADCConvCompleteFlag
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:427    .bss:00000000 ADCResultPtr
+C:\Users\oguzk\AppData\Local\Temp\ccSFhFzy.s:423    .bss:00000000 $d
+
+UNDEFINED SYMBOLS
+ADC_GetChannelConversionResult
+__aeabi_ui2d
+__aeabi_dmul
+__aeabi_d2iz
+DbgConsole_Printf
+CLOCK_GetFreq
+ADC_DoSelfCalibration
+ADC_Init
+ADC_SetConvSeqAConfig
+ADC_GetConvSeqAGlobalConversionResult
+SCTIMER_GetDefaultConfig
+SCTIMER_Init
+SCTIMER_CreateAndScheduleEvent
+SCTIMER_SetupOutputToggleAction
+CLOCK_GetMainClkFreq
+RESET_PeripheralReset
+DbgConsole_Init
+CLOCK_InitSystemPll
+CLOCK_SetMainClkSrc
+SystemCoreClockUpdate
+InitPins
+SCTIMER_SetupPwm
